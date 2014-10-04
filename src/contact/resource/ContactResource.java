@@ -12,6 +12,7 @@ import javax.net.ssl.SSLEngineResult.Status;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -19,8 +20,10 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import javax.xml.bind.JAXBElement;
@@ -61,13 +64,21 @@ public class ContactResource {
 	@GET
 	@Path("{id}")
 	@Produces( MediaType.APPLICATION_XML)
-	public Response getContact( @PathParam("id") long id ) 
+	public Response getContact( @PathParam("id") long id, @Context Request req ) 
 	{
 		Contact contact = dao.find(id);
 		if(contact == null){
 			return Response.status(javax.ws.rs.core.Response.Status.NOT_FOUND).build();
 		}
-		return Response.ok(contact).build();
+		
+		
+		Response.ResponseBuilder rb = null;
+		rb = req.evaluatePreconditions(new EntityTag(contact.getMD5()));
+		if(rb != null){
+			return rb.build();
+		}
+		
+		return Response.ok().build();
 	}
 	
 	/**
@@ -101,9 +112,17 @@ public class ContactResource {
 	@POST
 	@Consumes( { MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON } )
 	public Response post( 
-			JAXBElement<Contact> element, @Context UriInfo uriInfo ) {
+			JAXBElement<Contact> element, @Context UriInfo uriInfo, @Context Request req ) {
 		Contact contact = element.getValue();
 		long newID = contact.getId();
+		
+		Response.ResponseBuilder rb = null;
+		rb = req.evaluatePreconditions(new EntityTag(contact.getMD5()));
+		
+		if(rb != null){
+			return rb.build();
+		}
+		
 		if( dao.find( newID ) != null){
 			return Response.status(javax.ws.rs.core.Response.Status.CONFLICT).build();
 		}
@@ -123,16 +142,24 @@ public class ContactResource {
 	@Path("{id}")
 	@Consumes( { MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON } )
 	public Response put( 
-		JAXBElement<Contact> element, @Context UriInfo uriInfo, @PathParam("id") long id ) {
+		JAXBElement<Contact> element, @Context UriInfo uriInfo, @PathParam("id") long id,
+		 @Context Request req) {
 		Contact contact = element.getValue();
 		contact.setId(id);
-		if(dao.find(id) != null){ 
+		
+		Response.ResponseBuilder rb = null;
+		rb = req.evaluatePreconditions(new EntityTag(contact.getMD5()));
+		
+		if(rb != null){
+			return rb.build();
+		}
+		if( dao.find(id) != null ){ 
 			dao.update( contact );
 			URI uri = uriInfo.getAbsolutePathBuilder().path(contact.getId()+"").build();
 			return Response.ok(uri+"").build();
 		}
 		else 
-			return Response.status(Response.Status.BAD_REQUEST).build();
+			return Response.status(Response.Status.NOT_FOUND).build();
 	}
 	
 	/**
@@ -141,7 +168,18 @@ public class ContactResource {
 	 */
 	@DELETE
 	@Path("{id}")
-	public Response delete( @PathParam("id") long id ) {
+	public Response delete( @PathParam("id") long id, @Context Request req ) {
+		
+		Contact contact = dao.find(id);
+		
+		Response.ResponseBuilder rb = null;
+		rb = req.evaluatePreconditions(new EntityTag(contact.getMD5()));
+		
+		if(rb != null){
+			return rb.build();
+		}
+		
+//		if(contact == null) return Response.status(Response.Status.OK).build();
 		dao.delete(id);
 		return Response.ok().build();
 	}
