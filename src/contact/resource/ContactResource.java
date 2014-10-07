@@ -78,7 +78,7 @@ public class ContactResource {
 			return rb.build();
 		}
 		
-		return Response.ok().build();
+		return Response.ok(contact).tag(new EntityTag(contact.getMD5())).build();
 	}
 	
 	/**
@@ -156,7 +156,7 @@ public class ContactResource {
 		if( dao.find(id) != null ){ 
 			dao.update( contact );
 			URI uri = uriInfo.getAbsolutePathBuilder().path(contact.getId()+"").build();
-			return Response.ok(uri+"").build();
+			return Response.ok(uri+"").tag(new EntityTag(contact.getMD5())).build();
 		}
 		else 
 			return Response.status(Response.Status.NOT_FOUND).build();
@@ -181,7 +181,7 @@ public class ContactResource {
 		
 //		if(contact == null) return Response.status(Response.Status.OK).build();
 		dao.delete(id);
-		return Response.ok().build();
+		return Response.ok().tag(new EntityTag(contact.getMD5())).build();
 	}
 	
 }
